@@ -1,0 +1,22 @@
+# Copy these values to your .env.local file (for local development)
+# For Railway deployment, add these in Railway Dashboard → Variables tab
+
+# GoHighLevel CRM Integration (Required)
+GHL_API_KEY=pit-08876e0d-f388-4a63-ba4d-c2bea2af5746
+GHL_LOCATION_ID=eoDjI8W0iLnEwTnIgGPx
+
+# Get these from GoHighLevel → Opportunities → Pipelines
+# Pipeline ID: VDm7RPYC2GLUvdpKmBfC
+# Stage ID: 7915dedc-8f18-44d5-8bc3-77c04e994a10
+GHL_PIPELINE_ID=VDm7RPYC2GLUvdpKmBfC
+GHL_PIPELINE_STAGE_ID=7915dedc-8f18-44d5-8bc3-77c04e994a10
+
+# Google Maps API (Required - for address autocomplete)
+# NEXT_PUBLIC_ prefix exposes it to the browser
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# Optional: For property data enrichment
+SMARTY_AUTH_ID=your_smarty_auth_id
+SMARTY_AUTH_TOKEN=your_smarty_auth_token
+

@@ -1,0 +1,926 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import confetti from 'canvas-confetti'
+
+type FormDa        // Auto-fill form fields if data is available
+      if (data.success && data.data) {
+        if (data.data.buildingSquareFootage) setValue('totalSqFootage', data.data.buildingSquareFootage)
+        if (data.data.constructionType) setValue('constructionType', data.data.constructionType)
+        if (data.data.yearBuilt) setValue('yearBuilt', data.data.yearBuilt)
+      }
+  // Address (top field)
+  address: string
+  
+  // Company Information
+  corporationName: string
+  contactName: string
+  contactNumber: string
+  contactEmail: string
+  proposedEffectiveDate: string
+  priorCarrier: string
+  targetPremium: string
+  
+  // Applicant Type
+  applicantType: string
+  
+  // Security Systems
+  burglarAlarmCentral: boolean
+  burglarAlarmLocal: boolean
+  fireAlarmCentral: boolean
+  fireAlarmLocal: boolean
+  
+  // Operations
+  operationDescription: string
+  
+  // Ownership
+  ownershipType: string
+  
+  // Property Information (from Smarty data)
+  yearBuilt: string
+  totalSqFootage: string
+  constructionType: string
+  acres: string
+  
+  // Financial Information
+  assessedValue: string
+  marketValue: string
+  primaryLender: string
+  mortgageAmount: string
+  
+  // Location Information
+  county: string
+  municipality: string
+  metroArea: string
+  
+  // Property Details
+  bedrooms: string
+  bathrooms: string
+  stories: string
+  garageSize: string
+  lotSize: string
+  
+  // Construction Details
+  roofType: string
+  exteriorWalls: string
+  foundation: string
+  
+  // Property Coverage
+  building: string
+  bpp: string
+  bi: string
+  canopy: string
+  pumps: string
+  ms: string
+  
+  // General Liability Sales (with monthly/yearly)
+  insideSalesMonthly: string
+  insideSalesYearly: string
+  liquorSalesMonthly: string
+  liquorSalesYearly: string
+  gasolineSalesMonthly: string
+  gasolineSalesYearly: string
+  propaneFillingExchangeMonthly: string
+  propaneFillingExchangeYearly: string
+  carwashMonthly: string
+  carwashYearly: string
+  cookingMonthly: string
+  cookingYearly: string
+  
+  // Business Details
+  coverageLimits: string
+  fein: string
+  dba: string
+  hoursOfOperation: string
+  noOfMPDs: string
+  yearsInBusiness: string
+  yearsAtLocation: string
+  yearOfLatestUpdate: string
+  anyLeasedOutSpace: string
+  protectionClass: string
+  additionalInsured: string
+  alarm: string
+  noOfEmployees: string
+  payroll: string
+  officersInclExcl: string
+  ownership: string
+}
+
+export default function Home() {
+  const [currentStep, setCurrentStep] = useState(0) // 0 = address lookup, 1-5 = form steps
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [fetchedData, setFetchedData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSidePanel, setShowSidePanel] = useState(false)
+  const addressInputRef = useRef<HTMLInputElement>(null)
+  
+  const totalSteps = 8
+  const progress = currentStep > 0 ? ((currentStep - 1) / totalSteps) * 100 : 0
+  
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
+    defaultValues: {
+      ownershipType: 'owner',
+      applicantType: 'individual',
+      burglarAlarmCentral: false,
+      burglarAlarmLocal: false,
+      fireAlarmCentral: false,
+      fireAlarmLocal: false
+    }
+  })
+
+  // Initialize Google Places Autocomplete
+  useEffect(() => {
+    const checkGoogle = setInterval(() => {
+      if (window.google && addressInputRef.current) {
+        const autocomplete = new window.google.maps.places.Autocomplete(
+          addressInputRef.current,
+          { types: ['address'], componentRestrictions: { country: 'us' } }
+        )
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace()
+          if (place.formatted_address) {
+            setValue('address', place.formatted_address)
+          }
+        })
+        clearInterval(checkGoogle)
+      }
+    }, 100)
+
+    return () => clearInterval(checkGoogle)
+  }, [setValue])
+
+  // Fetch property data
+  const fetchPropertyData = async () => {
+    const address = watch('address')
+    if (!address) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address })
+      })
+
+      const data = await response.json()
+      setFetchedData(data)
+      setShowSidePanel(true)
+      
+      // Auto-fill form fields if data is available
+      if (data.success && data.data) {
+        if (data.data.buildingSquareFootage) setValue('buildingSquareFootage', data.data.buildingSquareFootage)
+        if (data.data.constructionType) setValue('constructionType', data.data.constructionType)
+        if (data.data.yearBuilt) setValue('yearBuilt', data.data.yearBuilt)
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      // Show side panel even on error so user can continue
+      setShowSidePanel(true)
+      setFetchedData({ 
+        success: false, 
+        message: 'Unable to fetch property data. You can continue manually.',
+        fieldsCount: 0 
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fillAllFields = () => {
+    setCurrentStep(1)
+    setShowSidePanel(false)
+  }
+
+  const onSubmit = (data: FormData) => {
+    console.log('Form submitted:', data)
+    setIsSubmitted(true)
+    
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    })
+  }
+
+  const nextStep = () => {
+    if (currentStep <= totalSteps) {
+      setCurrentStep(currentStep + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md text-center">
+          <div className="w-24 h-24 mx-auto mb-8 bg-black rounded-2xl flex items-center justify-center transform rotate-3 hover:rotate-0 transition-transform duration-300">
+            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-black text-black mb-4">Application Submitted!</h1>
+          <p className="text-gray-600 mb-8 text-lg font-medium">
+            We'll review your application and contact you within 24 hours.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-black text-white px-10 py-5 rounded-xl hover:bg-gray-800 transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            New Application →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 0: Address Lookup Screen
+  if (currentStep === 0) {
+    return (
+      <>
+        <div className="min-h-screen bg-white flex items-center justify-center p-4">
+          <div className="max-w-3xl w-full">
+            <div className="text-center mb-12">
+              <div className="inline-block mb-6">
+                <div className="w-20 h-20 bg-black rounded-2xl flex items-center justify-center transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+              </div>
+              <h1 className="text-5xl md:text-6xl font-black text-black mb-4 tracking-tight">
+                Get Insured Fast
+              </h1>
+              <p className="text-xl text-gray-500 font-light">
+                Start with your property address
+              </p>
+            </div>
+
+            <div className="bg-white border-2 border-gray-900 rounded-2xl p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+              <label className="block text-sm font-bold uppercase tracking-wide text-gray-900 mb-3">
+                Property Address
+              </label>
+              <input
+                ref={addressInputRef}
+                type="text"
+                placeholder="123 Main Street, City, State"
+                className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium"
+                defaultValue={watch('address')}
+                onChange={(e) => setValue('address', e.target.value)}
+              />
+              
+              <button
+                onClick={fetchPropertyData}
+                disabled={isLoading || !watch('address')}
+                className="w-full mt-6 bg-black text-white py-5 rounded-xl hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                    Searching...
+                  </span>
+                ) : (
+                  '→ Continue'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Side Panel */}
+        {showSidePanel && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 backdrop-blur-sm"
+              onClick={() => setShowSidePanel(false)}
+            />
+            <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl overflow-y-auto z-50 animate-slide-in border-l-4 border-black">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl font-black text-black">Property Data</h2>
+                  <button
+                    onClick={() => setShowSidePanel(false)}
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {fetchedData?.success ? (
+                  <>
+                    <div className="bg-black text-white rounded-2xl p-6 mb-6 transform hover:scale-105 transition-transform duration-200">
+                      <p className="text-sm font-bold uppercase tracking-wide opacity-80 mb-2">Fields Auto-Filled</p>
+                      <p className="text-5xl font-black">{fetchedData.fieldsCount || 0}</p>
+                      <p className="text-sm opacity-80 mt-2">✨ We did the work for you!</p>
+                    </div>
+
+                    {fetchedData.data && (
+                      <div className="space-y-3 mb-6">
+                        <h3 className="font-black text-gray-900 mb-4 uppercase text-sm tracking-wide">Property Information</h3>
+                        
+                        {fetchedData.data.buildingSquareFootage && (
+                          <div className="flex justify-between py-4 border-b-2 border-gray-100 hover:border-gray-900 transition-colors">
+                            <span className="text-gray-600 font-medium">Square Footage</span>
+                            <span className="font-bold text-black">{fetchedData.data.buildingSquareFootage}</span>
+                          </div>
+                        )}
+                        
+                        {fetchedData.data.yearBuilt && (
+                          <div className="flex justify-between py-4 border-b-2 border-gray-100 hover:border-gray-900 transition-colors">
+                            <span className="text-gray-600 font-medium">Year Built</span>
+                            <span className="font-bold text-black">{fetchedData.data.yearBuilt}</span>
+                          </div>
+                        )}
+                        
+                        {fetchedData.data.constructionType && (
+                          <div className="flex justify-between py-4 border-b-2 border-gray-100 hover:border-gray-900 transition-colors">
+                            <span className="text-gray-600 font-medium">Construction</span>
+                            <span className="font-bold text-black">{fetchedData.data.constructionType}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={fillAllFields}
+                      className="w-full bg-black text-white py-5 rounded-xl hover:bg-gray-800 transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      Continue to Application →
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-2xl flex items-center justify-center">
+                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-900 font-black text-xl mb-2">No Data Found</p>
+                    <p className="text-gray-600 text-sm mb-8 font-medium">
+                      {fetchedData?.message || "That's okay! You can fill it out manually."}
+                    </p>
+                    <button
+                      onClick={fillAllFields}
+                      className="w-full bg-black text-white py-5 rounded-xl hover:bg-gray-800 transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      Continue Manually →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  // Main Form (Steps 1-5)
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="border-b-4 border-black bg-white sticky top-0 z-40 shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-black text-black tracking-tight">Insurance Application</h1>
+            <div className="text-right">
+              <div className="text-3xl font-black text-black">{Math.round(progress)}%</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                Step {currentStep} of {totalSteps}
+              </div>
+            </div>
+          </div>
+          {/* Modern Progress bar */}
+          <div className="relative">
+            <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+              <div
+                className="bg-black h-3 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+              </div>
+            </div>
+            {/* Step dots */}
+            <div className="flex justify-between mt-3">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div key={step} className="flex flex-col items-center">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
+                      currentStep > step
+                        ? 'bg-black text-white scale-110'
+                        : currentStep === step
+                        ? 'bg-black text-white scale-125 shadow-lg ring-4 ring-gray-300'
+                        : 'bg-gray-200 text-gray-400'
+                    }`}
+                  >
+                    {currentStep > step ? '✓' : step}
+                  </div>
+                  <div className={`text-xs mt-1 font-bold ${currentStep === step ? 'text-black' : 'text-gray-400'}`}>
+                    {step === 1 && 'Info'}
+                    {step === 2 && 'Property'}
+                    {step === 3 && 'Coverage'}
+                    {step === 4 && 'Additional'}
+                    {step === 5 && 'Review'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto px-4 py-12">
+        
+        {/* Step 1: Business & Contact */}
+        {currentStep === 1 && (
+          <div className="space-y-12">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Business Information</h2>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Business Name *
+                  </label>
+                  <input
+                    {...register('businessName', { required: true })}
+                    type="text"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    DBA (if applicable)
+                  </label>
+                  <input
+                    {...register('dba')}
+                    type="text"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Years in Business *
+                  </label>
+                  <input
+                    {...register('yearsInBusiness', { required: true })}
+                    type="number"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Ownership Type *
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['Owner', 'Tenant', "Lessor's Risk", 'Triple Net Lease'].map((type) => (
+                      <label
+                        key={type}
+                        className="group relative flex items-center px-5 py-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-black transition-all duration-200 bg-white hover:bg-gray-50"
+                      >
+                        <input
+                          type="radio"
+                          {...register('ownershipType', { required: true })}
+                          value={type}
+                          className="w-5 h-5 mr-3 accent-black"
+                        />
+                        <span className="font-bold text-gray-900 group-hover:text-black">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Contact Information</h2>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Full Name *
+                  </label>
+                  <input
+                    {...register('applicantName', { required: true })}
+                    type="text"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Email Address *
+                  </label>
+                  <input
+                    {...register('email', { required: true, pattern: /^\S+@\S+$/i })}
+                    type="email"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Phone Number *
+                  </label>
+                  <input
+                    {...register('phone', { required: true })}
+                    type="tel"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Property Details */}
+        {currentStep === 2 && (
+          <div className="space-y-12">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Property Details</h2>
+              </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Building Square Footage *
+                </label>
+                <input
+                  {...register('buildingSquareFootage', { required: true })}
+                  type="text"
+                  placeholder="3,500"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Construction Type *
+                </label>
+                <select
+                  {...register('constructionType', { required: true })}
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400 bg-white"
+                >
+                  <option value="">Select...</option>
+                  <option value="Frame">Frame</option>
+                  <option value="Masonry">Masonry</option>
+                  <option value="Fire Resistive">Fire Resistive</option>
+                  <option value="Non-Combustible">Non-Combustible</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Year Built *
+                </label>
+                <input
+                  {...register('yearBuilt', { required: true })}
+                  type="text"
+                  placeholder="2010"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Number of MPDs *
+                </label>
+                <input
+                  {...register('noOfMPDs', { required: true })}
+                  type="number"
+                  placeholder="8"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Hours of Operation *
+                </label>
+                <input
+                  {...register('hoursOfOperation', { required: true })}
+                  type="text"
+                  placeholder="24/7 or 6 AM - 11 PM"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Coverage */}
+        {currentStep === 3 && (
+          <div className="space-y-12">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Coverage Requirements</h2>
+              </div>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Effective Date *
+                  </label>
+                  <input
+                    {...register('effectiveDate', { required: true })}
+                    type="date"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                    Expiration Date *
+                  </label>
+                  <input
+                    {...register('expirationDate', { required: true })}
+                    type="date"
+                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Building Limit *
+                </label>
+                <input
+                  {...register('buildingLimit', { required: true })}
+                  type="text"
+                  placeholder="$500,000"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Contents Limit *
+                </label>
+                <input
+                  {...register('contentsLimit', { required: true })}
+                  type="text"
+                  placeholder="$100,000"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Business Income Limit
+                </label>
+                <input
+                  {...register('businessIncome')}
+                  type="text"
+                  placeholder="$50,000"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Deductible *
+                </label>
+                <select
+                  {...register('deductible', { required: true })}
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400 bg-white"
+                >
+                  <option value="">Select...</option>
+                  <option value="$1,000">$1,000</option>
+                  <option value="$2,500">$2,500</option>
+                  <option value="$5,000">$5,000</option>
+                  <option value="$10,000">$10,000</option>
+                </select>
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Additional Information */}
+        {currentStep === 4 && (
+          <div className="space-y-12">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Additional Information</h2>
+              </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Additional Insureds
+                </label>
+                <textarea
+                  {...register('additionalInsureds')}
+                  rows={4}
+                  placeholder="Optional"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Mortgagee / Loss Payee
+                </label>
+                <textarea
+                  {...register('lossPayee')}
+                  rows={4}
+                  placeholder="Optional"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black uppercase tracking-wide text-gray-700 mb-3">
+                  Certificate Holders
+                </label>
+                <textarea
+                  {...register('certificateHolders')}
+                  rows={4}
+                  placeholder="Optional"
+                  className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-black transition-all duration-200 font-medium hover:border-gray-400 resize-none"
+                />
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Review */}
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-900">
+              <div className="flex items-center mb-8">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-black">Review Application</h2>
+              </div>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-gray-900 text-lg">Property</h3>
+                  <button type="button" onClick={() => setCurrentStep(0)} className="text-sm font-bold hover:underline">
+                    Edit →
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Address:</span>
+                    <span className="font-bold">{watch('address')}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Ownership:</span>
+                    <span className="font-bold">{watch('ownershipType')}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-gray-900 text-lg">Business</h3>
+                  <button type="button" onClick={() => setCurrentStep(1)} className="text-sm font-bold hover:underline">
+                    Edit →
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Business:</span>
+                    <span className="font-bold">{watch('businessName')}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Contact:</span>
+                    <span className="font-bold">{watch('applicantName')}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-gray-900 text-lg">Property Details</h3>
+                  <button type="button" onClick={() => setCurrentStep(2)} className="text-sm font-bold hover:underline">
+                    Edit →
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Square Footage:</span>
+                    <span className="font-bold">{watch('buildingSquareFootage')}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Year Built:</span>
+                    <span className="font-bold">{watch('yearBuilt')}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-gray-900 text-lg">Coverage</h3>
+                  <button type="button" onClick={() => setCurrentStep(3)} className="text-sm font-bold hover:underline">
+                    Edit →
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Building:</span>
+                    <span className="font-bold">{watch('buildingLimit')}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Contents:</span>
+                    <span className="font-bold">{watch('contentsLimit')}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center mt-12 pt-8">
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={prevStep}
+              className="px-8 py-4 border-2 border-gray-900 rounded-xl hover:bg-gray-900 hover:text-white transition-all duration-200 font-bold text-lg"
+            >
+              ← Back
+            </button>
+          )}
+          
+          {currentStep < 5 ? (
+            <button
+              type="button"
+              onClick={nextStep}
+              className="ml-auto px-10 py-5 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              Continue →
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="ml-auto px-10 py-5 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200 font-bold text-lg tracking-wide uppercase shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              🎉 Submit Application
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+declare global {
+  interface Window {
+    google: any
+  }
+}

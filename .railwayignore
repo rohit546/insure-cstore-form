@@ -1,0 +1,22 @@
+# Railway ignore file (similar to .gitignore)
+# Files that should not be deployed to Railway
+
+node_modules/
+.next/
+.env.local
+.env*.local
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.md
+!README.md
+!RAILWAY_DEPLOYMENT.md
+!GOHIGHLEVEL_SETUP.md
+!GOHIGHLEVEL_TROUBLESHOOTING.md
+FORM_ANALYSIS.md
+ENV_LOCAL_EXAMPLE.txt
+
