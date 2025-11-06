@@ -109,7 +109,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [showSidePanel, setShowSidePanel] = useState(false)
   const [selectedEnrichmentFields, setSelectedEnrichmentFields] = useState<Record<string, boolean>>({})
-  const addressInputRef = useRef<HTMLInputElement>(null)
+  const addressInputRef = useRef<HTMLInputElement | null>(null)
   
   const totalSteps = 7
   const progress = currentStep > 0 ? ((currentStep - 1) / totalSteps) * 100 : 0
@@ -533,7 +533,7 @@ export default function Home() {
                         } else if (ref) {
                           (ref as React.MutableRefObject<HTMLInputElement | null>).current = e
                         }
-                        addressInputRef.current = e
+                        (addressInputRef as React.MutableRefObject<HTMLInputElement | null>).current = e
                       }
                     }
                   })()}
